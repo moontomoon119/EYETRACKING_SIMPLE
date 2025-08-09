@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아이트래킹 데이터 뷰어</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 300px;
+            background-color: #e8e8e8;
+            border-right: 2px solid #ccc;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            margin-bottom: 15px;
+            color: #555;
+            font-size: 16px;
+        }
+
+        .upload-section {
+            margin-bottom: 30px;
+        }
+
+        .file-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px dashed #999;
+            border-radius: 5px;
+            background-color: #fff;
+            cursor: pointer;
+            text-align: center;
+            transition: border-color 0.3s;
+        }
+
+        .file-input:hover {
+            border-color: #666;
+        }
+
+        .stimulus-list {
+            margin-top: 20px;
+        }
+
+        .stimulus-item {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .stimulus-item:hover {
+            background-color: #f0f0f0;
+            border-color: #999;
+        }
+
+        .stimulus-item.active {
+            background-color: #4CAF50;
+            color: white;
+            border-color: #45a049;
+        }
+
+        .stimulus-id {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .stimulus-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .stimulus-item.active .stimulus-info {
+            color: #e8f5e8;
+        }
+
+        .workspace {
+            flex: 1;
+            background-color: #fff;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .workspace-content {
+            position: relative;
+            width: 1920px;
+            height: 1080px;
+            border: 3px solid #333;
+            background-color: #fafafa;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .workspace-content::before {
+            content: '1920 × 1080';
+            position: absolute;
+            top: -35px;
+            left: 0;
+            background-color: #333;
+            color: white;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 3px;
+            z-index: 5;
+        }
+
+        .background-image {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: center;
+            object-fit: contain;
+            z-index: 1;
+            cursor: move;
+            user-select: none;
+            transition: transform 0.1s ease-out;
+        }
+
+        .image-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .image-container:hover {
+            outline: 2px dashed #2196F3;
+            outline-offset: 2px;
+        }
+
+        .scale-info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(33, 150, 243, 0.9);
+            color: white;
+            padding: 5px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .image-container:hover .scale-info {
+            opacity: 1;
+        }
+
+        .gaze-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .workspace-controls {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #ddd;
+        }
+
+        .background-upload {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .image-controls {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .control-btn {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover {
+            background-color: #f0f0f0;
+            border-color: #999;
+        }
+
+        .control-btn:active {
+            background-color: #e0e0e0;
+        }
+
+        .right-sidebar {
+            width: 300px;
+            background-color: #e8e8e8;
+            border-left: 2px solid #ccc;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .info-section {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+
+        .error {
+            color: #d32f2f;
+            background-color: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 좌측 사이드바 -->
+        <div class="sidebar">
+            <h3>CSV 업로드</h3>
+            <div class="upload-section">
+                <input type="file" id="csvFile" accept=".csv" style="display: none;">
+                <div class="file-input" onclick="document.getElementById('csvFile').click()">
+                    CSV 파일을 선택하세요
+                </div>
+                <div id="uploadStatus"></div>
+            </div>
+
+            <h3>Stimulus ID 목록</h3>
+            <div class="stimulus-list" id="stimulusList">
+                <div class="loading">CSV 파일을 업로드하세요</div>
+            </div>
+        </div>
+
+        <!-- 중앙 워크스페이스 -->
+        <div class="workspace">
+            <div class="workspace-content" id="workspaceContent">
+                <div class="image-container" id="imageContainer">
+                    <div class="scale-info" id="scaleInfo">100%</div>
+                </div>
+                <canvas class="gaze-canvas" id="gazeCanvas" width="1920" height="1080"></canvas>
+                
+                <div class="workspace-controls">
+                    <div class="background-upload">
+                        <input type="file" id="backgroundFile" accept=".png,.jpg,.jpeg" style="display: none;">
+                        <button class="control-btn" onclick="document.getElementById('backgroundFile').click()">
+                            📁 배경 이미지 업로드
+                        </button>
+                    </div>
+                    <div class="image-controls">
+                        <button class="control-btn" onclick="resetImageTransform()">🔄 이미지 리셋</button>
+                        <button class="control-btn" onclick="removeBackgroundImage()">🗑️ 이미지 제거</button>
+                    </div>
+                    <div style="text-align: center; margin-top: 10px; font-size: 11px; color: #666;">
+                        팁: 마우스 휠로 확대/축소<br>
+                        Ctrl + 휠: 1% 단위 세밀 조절
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 우측 사이드바 -->
+        <div class="right-sidebar">
+            <h3>선택된 Stimulus 정보</h3>
+            <div id="stimulusInfo">
+                <div class="loading">Stimulus ID를 선택하세요</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let csvData = [];
+        let stimulusGroups = {};
+        let currentStimulus = null;
+        let backgroundImages = {};
+        let isDragging = false;
+        let isResizing = false;
+        let dragStart = { x: 0, y: 0 };
+        let imageTransforms = {}; // stimulus별 이미지 변환 정보 저장
+
+        // CSV 파일 업로드 처리
+        document.getElementById('csvFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        parseCSV(e.target.result);
+                    } catch (error) {
+                        showError('CSV 파싱 중 오류가 발생했습니다: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // 배경 이미지 업로드 처리
+        document.getElementById('backgroundFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file && currentStimulus) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    setBackgroundImage(currentStimulus, e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function sanitizeId(value) {
+            if (!value || value === 'undefined' || value === 'null') return '';
+            let text = String(value).trim();
+            text = text.replace(/^["]+|["]+$/g, '');
+            return text;
+        }
+
+        function parseCSV(csvText) {
+            const lines = csvText.split('\n');
+            if (lines.length < 2) {
+                showError('CSV 파일이 올바르지 않습니다.');
+                return;
+            }
+
+            const headers = lines[0].split(',').map(h => h.trim());
+            csvData = [];
+
+            // 필요한 컬럼 인덱스 찾기
+            const colIndices = {
+                timestamp: headers.indexOf('TimeStamp [us]'),
+                type: headers.indexOf('Type'),
+                stimulusId: headers.indexOf('Stimulus ID'),
+                resX: headers.indexOf('Resolution X'),
+                resY: headers.indexOf('Resolution Y'),
+                key: headers.indexOf('Key'),
+                value: headers.indexOf('Value'),
+                filteredX: headers.indexOf('Filtered POR X'),
+                filteredY: headers.indexOf('Filtered POR Y'),
+                rawX: headers.indexOf('Raw POR X'),
+                rawY: headers.indexOf('Raw POR Y')
+            };
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                const cols = line.split(',');
+                if (cols.length < headers.length) continue;
+
+                const row = {
+                    timestamp: parseFloat(cols[colIndices.timestamp]) || 0,
+                    type: sanitizeId(cols[colIndices.type]).toLowerCase(),
+                    stimulusId: sanitizeId(cols[colIndices.stimulusId]),
+                    resX: parseFloat(cols[colIndices.resX]) || 1920,
+                    resY: parseFloat(cols[colIndices.resY]) || 1080,
+                    key: sanitizeId(cols[colIndices.key]),
+                    value: sanitizeId(cols[colIndices.value]),
+                    filteredX: parseFloat(cols[colIndices.filteredX]),
+                    filteredY: parseFloat(cols[colIndices.filteredY]),
+                    rawX: parseFloat(cols[colIndices.rawX]),
+                    rawY: parseFloat(cols[colIndices.rawY])
+                };
+
+                if (row.stimulusId) {
+                    csvData.push(row);
+                }
+            }
+
+            processData();
+            document.getElementById('uploadStatus').innerHTML = 
+                `<div style="color: green; margin-top: 10px;">✓ ${csvData.length}개 행 로드됨</div>`;
+        }
+
+        function processData() {
+            stimulusGroups = {};
+
+            // Stimulus ID별로 그룹화
+            csvData.forEach(row => {
+                if (!stimulusGroups[row.stimulusId]) {
+                    stimulusGroups[row.stimulusId] = {
+                        id: row.stimulusId,
+                        data: [],
+                        events: [],
+                        minTimestamp: Infinity,
+                        maxTimestamp: -Infinity
+                    };
+                }
+
+                const group = stimulusGroups[row.stimulusId];
+                
+                if (row.type === 'data') {
+                    group.data.push(row);
+                } else if (row.type === 'event') {
+                    group.events.push(row);
+                }
+
+                if (row.timestamp < group.minTimestamp) group.minTimestamp = row.timestamp;
+                if (row.timestamp > group.maxTimestamp) group.maxTimestamp = row.timestamp;
+            });
+
+            // 각 그룹의 데이터를 타임스탬프 순으로 정렬
+            Object.values(stimulusGroups).forEach(group => {
+                group.data.sort((a, b) => a.timestamp - b.timestamp);
+                group.events.sort((a, b) => a.timestamp - b.timestamp);
+            });
+
+            renderStimulusList();
+        }
+
+        function renderStimulusList() {
+            const listElement = document.getElementById('stimulusList');
+            
+            // 시간순으로 정렬 (가장 먼저 시작된 것이 위로)
+            const sortedGroups = Object.values(stimulusGroups)
+                .sort((a, b) => a.minTimestamp - b.minTimestamp);
+
+            if (sortedGroups.length === 0) {
+                listElement.innerHTML = '<div class="loading">유효한 Stimulus ID가 없습니다</div>';
+                return;
+            }
+
+            listElement.innerHTML = sortedGroups.map(group => {
+                const onsetEvent = group.events.find(e => e.key.toLowerCase() === 'onset');
+                const endEvent = group.events.find(e => 
+                    ['timeout', 'end', 'offset'].includes(e.key.toLowerCase())
+                );
+                
+                return `
+                    <div class="stimulus-item" onclick="selectStimulus('${group.id}')">
+                        <div class="stimulus-id">${group.id}</div>
+                        <div class="stimulus-info">
+                            데이터 포인트: ${group.data.length}개<br>
+                            ${onsetEvent ? `시작: ${onsetEvent.value || 'onset'}` : ''}<br>
+                            ${endEvent ? `종료: ${endEvent.key}` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectStimulus(stimulusId) {
+            // 이전 선택 제거
+            document.querySelectorAll('.stimulus-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // 새로운 선택 활성화
+            event.target.closest('.stimulus-item').classList.add('active');
+
+            currentStimulus = stimulusId;
+            renderGazePolyline(stimulusId);
+            updateStimulusInfo(stimulusId);
+            
+            // 해당 stimulus의 배경 이미지가 있다면 표시
+            if (backgroundImages[stimulusId]) {
+                setBackgroundImage(stimulusId, backgroundImages[stimulusId]);
+            } else {
+                clearBackgroundImage();
+            }
+        }
+
+        function renderGazePolyline(stimulusId) {
+            const canvas = document.getElementById('gazeCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 캔버스 초기화
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const group = stimulusGroups[stimulusId];
+            if (!group || group.data.length === 0) return;
+
+            // 좌표 데이터 추출 및 정제
+            const points = [];
+            group.data.forEach(row => {
+                let x, y;
+                
+                // Filtered POR 우선, 없으면 Raw POR 사용
+                if (!isNaN(row.filteredX) && !isNaN(row.filteredY)) {
+                    x = row.filteredX;
+                    y = row.filteredY;
+                } else if (!isNaN(row.rawX) && !isNaN(row.rawY)) {
+                    x = row.rawX;
+                    y = row.rawY;
+                } else {
+                    return; // 좌표가 없으면 건너뛰기
+                }
+
+                // 화면 범위 내의 좌표만 사용
+                if (x >= 0 && y >= 0 && x <= 1920 && y <= 1080) {
+                    points.push({ x, y });
+                }
+            });
+
+            if (points.length < 2) return;
+
+            // 폴리라인 그리기
+            ctx.strokeStyle = '#2196F3';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            
+            ctx.stroke();
+
+            // 시작점과 끝점 표시
+            ctx.fillStyle = '#4CAF50';
+            ctx.beginPath();
+            ctx.arc(points[0].x, points[0].y, 5, 0, 2 * Math.PI);
+            ctx.fill();
+
+            ctx.fillStyle = '#f44336';
+            ctx.beginPath();
+            ctx.arc(points[points.length - 1].x, points[points.length - 1].y, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        function updateStimulusInfo(stimulusId) {
+            const group = stimulusGroups[stimulusId];
+            const infoElement = document.getElementById('stimulusInfo');
+            
+            if (!group) {
+                infoElement.innerHTML = '<div class="loading">정보를 불러올 수 없습니다</div>';
+                return;
+            }
+
+            const onsetEvent = group.events.find(e => e.key.toLowerCase() === 'onset');
+            const endEvent = group.events.find(e => 
+                ['timeout', 'end', 'offset'].includes(e.key.toLowerCase())
+            );
+
+            const duration = (group.maxTimestamp - group.minTimestamp) / 1000000; // 초
+
+            infoElement.innerHTML = `
+                <div class="info-section">
+                    <div class="info-label">Stimulus ID</div>
+                    <div class="info-value">${group.id}</div>
+                </div>
+                
+                <div class="info-section">
+                    <div class="info-label">데이터 포인트</div>
+                    <div class="info-value">${group.data.length}개</div>
+                </div>
+                
+                <div class="info-section">
+                    <div class="info-label">지속 시간</div>
+                    <div class="info-value">${duration.toFixed(2)}초</div>
+                </div>
+                
+                ${onsetEvent ? `
+                <div class="info-section">
+                    <div class="info-label">시작 이벤트</div>
+                    <div class="info-value">${onsetEvent.value || onsetEvent.key}</div>
+                </div>
+                ` : ''}
+                
+                ${endEvent ? `
+                <div class="info-section">
+                    <div class="info-label">종료 이벤트</div>
+                    <div class="info-value">${endEvent.key}${endEvent.value ? ': ' + endEvent.value : ''}</div>
+                </div>
+                ` : ''}
+                
+                <div class="info-section">
+                    <div class="info-label">이벤트 수</div>
+                    <div class="info-value">${group.events.length}개</div>
+                </div>
+            `;
+        }
+
+        function setBackgroundImage(stimulusId, imageData) {
+            backgroundImages[stimulusId] = imageData;
+            
+            // 기존 배경 이미지 제거
+            clearBackgroundImage();
+
+            // 이미지 변환 정보 초기화 (처음 업로드시)
+            if (!imageTransforms[stimulusId]) {
+                imageTransforms[stimulusId] = {
+                    x: 0,
+                    y: 0,
+                    scale: 1
+                };
+            }
+
+            // 새 배경 이미지 추가
+            const img = document.createElement('img');
+            img.className = 'background-image';
+            img.src = imageData;
+            
+            const transform = imageTransforms[stimulusId];
+            img.style.transform = `translate(-50%, -50%) translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`;
+            
+            const imageContainer = document.getElementById('imageContainer');
+            imageContainer.appendChild(img);
+            
+            // 이벤트 리스너 추가
+            img.addEventListener('mousedown', startDrag);
+            img.addEventListener('wheel', handleWheel, { passive: false });
+            
+            // 스케일 정보 업데이트
+            updateScaleInfo();
+        }
+
+        function clearBackgroundImage() {
+            const imageContainer = document.getElementById('imageContainer');
+            const existing = imageContainer.querySelector('.background-image');
+            if (existing) existing.remove();
+        }
+
+        function startDrag(e) {
+            if (!currentStimulus) return;
+            e.preventDefault();
+            
+            isDragging = true;
+            const transform = imageTransforms[currentStimulus];
+            dragStart.x = e.clientX - transform.x;
+            dragStart.y = e.clientY - transform.y;
+            
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', endDrag);
+        }
+
+        function drag(e) {
+            if (!isDragging || !currentStimulus) return;
+            
+            const transform = imageTransforms[currentStimulus];
+            transform.x = e.clientX - dragStart.x;
+            transform.y = e.clientY - dragStart.y;
+            
+            updateImageTransform();
+        }
+
+        function endDrag() {
+            isDragging = false;
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', endDrag);
+        }
+
+        function handleWheel(e) {
+            if (!currentStimulus) return;
+            e.preventDefault();
+            
+            const transform = imageTransforms[currentStimulus];
+            let scaleFactor;
+            
+            if (e.ctrlKey) {
+                // Ctrl 키를 누르고 있으면 1% 단위로 세밀하게 조절
+                scaleFactor = e.deltaY > 0 ? 0.99 : 1.01;
+            } else {
+                // 일반적인 확대/축소 (10% 단위)
+                scaleFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            }
+            
+            const newScale = Math.max(0.1, Math.min(5, transform.scale * scaleFactor));
+            
+            transform.scale = newScale;
+            updateImageTransform();
+        }
+
+        function updateImageTransform() {
+            if (!currentStimulus) return;
+            
+            const img = document.querySelector('.background-image');
+            
+            if (img) {
+                const transform = imageTransforms[currentStimulus];
+                img.style.transform = `translate(-50%, -50%) translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`;
+                updateScaleInfo();
+            }
+        }
+
+        function updateScaleInfo() {
+            if (!currentStimulus) return;
+            
+            const scaleInfo = document.getElementById('scaleInfo');
+            const transform = imageTransforms[currentStimulus];
+            
+            if (scaleInfo && transform) {
+                scaleInfo.textContent = `${Math.round(transform.scale * 100)}%`;
+            }
+        }
+
+        function resetImageTransform() {
+            if (!currentStimulus) return;
+            
+            imageTransforms[currentStimulus] = {
+                x: 0,
+                y: 0,
+                scale: 1
+            };
+            
+            updateImageTransform();
+        }
+
+        function removeBackgroundImage() {
+            if (!currentStimulus) return;
+            
+            delete backgroundImages[currentStimulus];
+            delete imageTransforms[currentStimulus];
+            clearBackgroundImage();
+        }
+
+        function showError(message) {
+            const statusElement = document.getElementById('uploadStatus');
+            statusElement.innerHTML = `<div class="error">${message}</div>`;
+        }
+    </script>
+</body>
+</html>
